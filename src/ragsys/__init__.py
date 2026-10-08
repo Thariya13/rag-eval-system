@@ -1,2 +1,3 @@
-def main() -> None:
-    print("Hello from ragsys!")
+"""ragsys: production-grade hybrid RAG with an evaluation harness."""
+
+__version__ = "0.1.0"
