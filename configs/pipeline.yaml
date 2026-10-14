@@ -1,0 +1,7 @@
+name: production
+chunking: structure
+contextual: false
+retrieval_mode: hybrid
+reranker: cross_encoder
+fetch_k: 30
+top_k: 6

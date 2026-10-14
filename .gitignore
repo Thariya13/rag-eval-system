@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Project
+.env
+.cache/
+results/
+data/raw/*
+!data/raw/.gitkeep
