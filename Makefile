@@ -1,6 +1,12 @@
-.PHONY: install lint test data
+.PHONY: install lint test data up down
 
 EU_AI_ACT_URL = https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:L_202401689
+
+up:
+	docker compose up -d qdrant
+
+down:
+	docker compose down
 
 install:
 	uv sync --extra rerank --extra eval --extra dev
