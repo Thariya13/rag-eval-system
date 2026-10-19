@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
 from ragsys import observability
 from ragsys.config import PipelineConfig, get_settings, load_pipeline_config
 
 app = typer.Typer(no_args_is_help=True, help="Production RAG with an evaluation harness")
+eval_app = typer.Typer(no_args_is_help=True, help="Test-set generation, evaluation, ablations, CI gate")
+app.add_typer(eval_app, name="eval")
 
+DEFAULT_DATASET = Path("data/eval/testset.jsonl")
 
 def _init():
     settings = get_settings()
@@ -51,6 +56,28 @@ def serve(host: str = "0.0.0.0", port: int = 8000):
     import uvicorn
 
     uvicorn.run("ragsys.api.app:app", host=host, port=port)
+
+
+@eval_app.command("generate")
+def eval_generate(
+    out: Path = Path("data/eval/candidates.jsonl"),
+    sections: int = 60,
+    per_section: int = 2,
+    multi_hop: int = 20,
+    unanswerable: int = 15,
+):
+    settings = _init()
+    from ragsys.evaluation.generate import generate_candidates
+
+    n = generate_candidates(settings, out, sections, per_section, multi_hop, unanswerable)
+    typer.echo(f"Wrote {n} new candidates to {out}. Next: ragsys eval review")
+
+
+@eval_app.command("review")
+def eval_review(candidates: Path = Path("data/eval/candidates.jsonl"), out: Path = DEFAULT_DATASET):
+    from ragsys.evaluation.generate import review_candidates
+
+    review_candidates(candidates, out)
 
 
 if __name__ == "__main__":
