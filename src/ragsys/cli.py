@@ -37,7 +37,8 @@ def ask(
 
     cfg = load_pipeline_config(settings.pipeline_config_path)
     filters = {k: v for k, v in {"ref": ref, "chapter": chapter}.items() if v} or None
-    result = RAGPipeline(settings, cfg).answer(question, filters)
+    result = RAGPipeline(settings, cfg).answer(question, filters, callbacks=observability.get_callbacks(settings))
+    observability.flush()
     typer.echo(f"\n{result.answer}\n")
     for c in result.citations:
         score = f"{c['score']:.3f}" if c["score"] is not None else "n/a"
