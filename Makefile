@@ -1,4 +1,4 @@
-.PHONY: install lint test data up down ingest
+.PHONY: install lint test data up down ingest serve
 
 EU_AI_ACT_URL = https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:L_202401689
 
@@ -10,6 +10,9 @@ down:
 
 ingest:
 	uv run ragsys ingest --chunking structure
+
+serve:
+	uv run ragsys serve
 
 install:
 	uv sync --extra rerank --extra eval --extra dev

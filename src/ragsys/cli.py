@@ -46,5 +46,12 @@ def ask(
     typer.echo(f"\n{result.latency_ms:.0f} ms, {result.total_tokens} tokens, warnings={result.warnings}")
 
 
+@app.command()
+def serve(host: str = "0.0.0.0", port: int = 8000):
+    import uvicorn
+
+    uvicorn.run("ragsys.api.app:app", host=host, port=port)
+
+
 if __name__ == "__main__":
     app()
