@@ -1,4 +1,4 @@
-.PHONY: install lint test data up down ingest serve testset review
+.PHONY: install lint test data up down ingest serve testset review eval eval-full
 
 EU_AI_ACT_URL = https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:L_202401689
 
@@ -19,6 +19,12 @@ testset:
 
 review:
 	uv run ragsys eval review
+
+eval:
+	uv run ragsys eval run
+
+eval-full:
+	uv run ragsys eval run --with-generation
 
 install:
 	uv sync --extra rerank --extra eval --extra dev

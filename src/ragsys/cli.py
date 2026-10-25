@@ -80,5 +80,31 @@ def eval_review(candidates: Path = Path("data/eval/candidates.jsonl"), out: Path
     review_candidates(candidates, out)
 
 
+def _examples(dataset: Path, include_unverified: bool, limit: int | None, smoke: int | None):
+    from ragsys.evaluation.dataset import file_sha256, load_examples
+
+    examples = load_examples(dataset, include_unverified, limit, smoke)
+    info = {"path": str(dataset), "sha256": file_sha256(dataset), "n_used": len(examples), "smoke": smoke}
+    return examples, info
+
+
+@eval_app.command("run")
+def eval_run(
+    dataset: Path = DEFAULT_DATASET,
+    with_generation: bool = typer.Option(False, "--with-generation", help="Also generate answers + LLM-judge metrics"),
+    include_unverified: bool = False,
+    limit: int | None = None,
+    smoke: int | None = typer.Option(None, help="Stratified subset size (for PR checks)"),
+    out: Path = Path("results"),
+):
+    settings = _init()
+    from ragsys.evaluation.runner import run_experiment
+
+    cfg = load_pipeline_config(settings.pipeline_config_path)
+    examples, info = _examples(dataset, include_unverified, limit, smoke)
+    summary, _ = run_experiment(settings, cfg, examples, with_generation=with_generation, out_root=out, dataset_info=info)
+    typer.echo((out / cfg.name / "report.md").read_text())
+
+
 if __name__ == "__main__":
     app()
