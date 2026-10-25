@@ -84,7 +84,7 @@ def generate_candidates(
     for doc in load_corpus(settings.raw_data_dir):
         sections = [s for s in parse_sections(doc) if s.section_type != "recital" and s.end - s.start >= 400]
         by_ref = {s.ref: s for s in sections}
-        text_of = lambda s: doc.text[s.start : s.end][:MAX_EXCERPT]
+        text_of = lambda s: doc.text[s.start : s.end][:MAX_EXCERPT] # noqa: E731
 
         sampled = rng.sample(sections, min(n_sections, len(sections)))
         inputs = [
