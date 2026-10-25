@@ -1,0 +1,29 @@
+defaults:
+  chunking: recursive
+  contextual: false
+  retrieval_mode: dense
+  reranker: none
+  fetch_k: 30
+  top_k: 6
+
+experiments:
+  - name: A_dense_recursive            # naive RAG baseline
+  - name: B_bm25_recursive             # keyword-only reference point
+    retrieval_mode: sparse
+  - name: C_hybrid_recursive           # + hybrid (dense + BM25, fused)
+    retrieval_mode: hybrid
+  - name: D_hybrid_semantic            # + semantic chunking
+    retrieval_mode: hybrid
+    chunking: semantic
+  - name: E_hybrid_structure           # + structure-aware chunking
+    retrieval_mode: hybrid
+    chunking: structure
+  - name: F_hybrid_structure_rerank    # + cross-encoder reranking
+    retrieval_mode: hybrid
+    chunking: structure
+    reranker: cross_encoder
+  - name: G_full_contextual            # + contextual chunk enrichment
+    retrieval_mode: hybrid
+    chunking: structure
+    reranker: cross_encoder
+    contextual: true

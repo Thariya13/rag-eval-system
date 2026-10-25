@@ -12,6 +12,7 @@ eval_app = typer.Typer(no_args_is_help=True, help="Test-set generation, evaluati
 app.add_typer(eval_app, name="eval")
 
 DEFAULT_DATASET = Path("data/eval/testset.jsonl")
+DEFAULT_EXPERIMENTS = Path("configs/ablations.yaml")
 
 def _init():
     settings = get_settings()
@@ -19,14 +20,35 @@ def _init():
     return settings
 
 
+def _resolve_config(settings, experiment: str | None, experiments_file: Path) -> PipelineConfig:
+    if experiment:
+        from ragsys.evaluation.ablation import load_experiments
+
+        matches = [c for c in load_experiments(experiments_file) if c.name == experiment]
+        if not matches:
+            raise typer.BadParameter(f"No experiment named '{experiment}' in {experiments_file}")
+        return matches[0]
+    return load_pipeline_config(settings.pipeline_config_path)
+
+
 @app.command()
 def ingest(
     chunking: str = typer.Option("structure", help="recursive | structure | semantic"),
     contextual: bool = typer.Option(False, "--contextual/--no-contextual"),
+    all_variants: bool = typer.Option(False, "--all", help="Build every index needed by the ablation file"),
 ):
     settings = _init()
     from ragsys.ingest.pipeline import ensure_index
 
+    if all_variants:
+        from ragsys.evaluation.ablation import load_experiments
+
+        seen = set()
+        for cfg in load_experiments(DEFAULT_EXPERIMENTS):
+            if cfg.index_key not in seen:
+                seen.add(cfg.index_key)
+                typer.echo(f"Indexed: {ensure_index(settings, cfg, force=True)}")
+        return
     cfg = PipelineConfig(chunking=chunking, contextual=contextual)
     typer.echo(f"Indexed: {ensure_index(settings, cfg, force=True)}")
 
@@ -36,11 +58,12 @@ def ask(
     question: str,
     ref: str | None = typer.Option(None, help='Filter, e.g. "Article 5"'),
     chapter: str | None = typer.Option(None, help='Filter, e.g. "Chapter III"'),
+    experiment: str | None = typer.Option(None, help="Use a named config from ablations.yaml"),
 ):
     settings = _init()
     from ragsys.generation.pipeline import RAGPipeline
 
-    cfg = load_pipeline_config(settings.pipeline_config_path)
+    cfg = _resolve_config(settings, experiment, DEFAULT_EXPERIMENTS)
     filters = {k: v for k, v in {"ref": ref, "chapter": chapter}.items() if v} or None
     result = RAGPipeline(settings, cfg).answer(question, filters, callbacks=observability.get_callbacks(settings))
     observability.flush()
@@ -91,6 +114,8 @@ def _examples(dataset: Path, include_unverified: bool, limit: int | None, smoke:
 @eval_app.command("run")
 def eval_run(
     dataset: Path = DEFAULT_DATASET,
+    experiment: str | None = typer.Option(None, help="Named config from ablations.yaml (default: pipeline.yaml)"),
+    experiments_file: Path = DEFAULT_EXPERIMENTS,
     with_generation: bool = typer.Option(False, "--with-generation", help="Also generate answers + LLM-judge metrics"),
     include_unverified: bool = False,
     limit: int | None = None,
@@ -100,10 +125,30 @@ def eval_run(
     settings = _init()
     from ragsys.evaluation.runner import run_experiment
 
-    cfg = load_pipeline_config(settings.pipeline_config_path)
+    cfg = _resolve_config(settings, experiment, experiments_file)
     examples, info = _examples(dataset, include_unverified, limit, smoke)
     summary, _ = run_experiment(settings, cfg, examples, with_generation=with_generation, out_root=out, dataset_info=info)
     typer.echo((out / cfg.name / "report.md").read_text())
+
+
+@eval_app.command("ablate")
+def eval_ablate(
+    dataset: Path = DEFAULT_DATASET,
+    experiments_file: Path = DEFAULT_EXPERIMENTS,
+    with_generation: bool = typer.Option(False, "--with-generation"),
+    include_unverified: bool = False,
+    limit: int | None = None,
+    out: Path = Path("results"),
+):
+    settings = _init()
+    from ragsys.evaluation.ablation import load_experiments, run_ablation
+
+    examples, info = _examples(dataset, include_unverified, limit, None)
+    report = run_ablation(
+        settings, load_experiments(experiments_file), examples,
+        with_generation=with_generation, out_root=out, dataset_info=info,
+    )
+    typer.echo(report.read_text())
 
 
 if __name__ == "__main__":
