@@ -1,0 +1,8 @@
+min:
+  recall@5: 0.75
+  mrr: 0.55
+  faithfulness: 0.80
+  correct_abstention_rate: 0.70
+max:
+  false_abstention_rate: 0.15
+  latency_ms_p95: 15000
