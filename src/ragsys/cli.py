@@ -14,6 +14,7 @@ app.add_typer(eval_app, name="eval")
 DEFAULT_DATASET = Path("data/eval/testset.jsonl")
 DEFAULT_EXPERIMENTS = Path("configs/ablations.yaml")
 
+
 def _init():
     settings = get_settings()
     observability.configure_logging(settings.log_level)
@@ -149,6 +150,17 @@ def eval_ablate(
         with_generation=with_generation, out_root=out, dataset_info=info,
     )
     typer.echo(report.read_text())
+
+
+@eval_app.command("gate")
+def eval_gate(summary: Path, thresholds: Path = Path("configs/thresholds.yaml")):
+    from ragsys.evaluation.gate import check_thresholds
+
+    failures = check_thresholds(summary, thresholds)
+    if failures:
+        typer.echo("Quality gate FAILED:\n  " + "\n  ".join(failures))
+        raise typer.Exit(code=1)
+    typer.echo("Quality gate passed")
 
 
 if __name__ == "__main__":
