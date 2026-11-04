@@ -1,6 +1,6 @@
 name: production
 chunking: structure
-contextual: true
+contextual: true # enable contextual chunk enrichment
 retrieval_mode: hybrid
 reranker: cross_encoder
 fetch_k: 30
