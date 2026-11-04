@@ -36,6 +36,7 @@ cohere = [
     "langchain-cohere>=0.4",
 ]
 eval = [
+    "langchain-community>=0.4,<0.4.2",
     "pandas>=2.0",
     "ragas>=0.2.15,<0.4",
 ]
