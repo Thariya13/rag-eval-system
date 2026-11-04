@@ -1,10 +1,10 @@
 name: rag-eval
 
 on:
-  push:
-    branches: [main]
   pull_request:
     paths: ["src/**", "configs/**", "data/eval/**", "pyproject.toml"]
+  schedule:
+    - cron: "0 3 * * *"   # nightly full ablation
   workflow_dispatch:
 
 jobs:
@@ -17,3 +17,58 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check src tests
       - run: pytest -q
+
+  eval:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      pull-requests: write
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.13.0
+        ports: ["6333:6333"]
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+      LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+      LANGFUSE_BASE_URL: https://cloud.langfuse.com
+      QDRANT_URL: http://localhost:6333
+      COLLECTION_PREFIX: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            .cache/contextual
+          key: models-and-context-${{ hashFiles('configs/**') }}
+      - run: pip install -e ".[rerank,eval]"
+      # Commit the source PDF to the repo if EUR-Lex blocks CI downloads
+      - run: test -f data/raw/eu_ai_act_2024_1689.pdf || make data
+
+      # PR: small stratified smoke set (LLM judge scores are noisy; thresholds include a margin)
+      - name: Smoke eval
+        if: github.event_name == 'pull_request'
+        run: |
+          ragsys eval run --smoke 30 --out results
+          ragsys eval gate results/production/summary.json
+
+      - name: Comment results on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: results/production/report.md
+
+      # Nightly: every ablation on the full verified test set
+      - name: Full ablation
+        if: github.event_name != 'pull_request'
+        run: ragsys eval ablate --out results
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: results/
